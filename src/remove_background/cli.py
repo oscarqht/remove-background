@@ -69,6 +69,13 @@ def serve(
         str | None,
         typer.Option("--localtunnel-host", help="Optional localtunnel server host URL."),
     ] = None,
+    localtunnel_local_host: Annotated[
+        str | None,
+        typer.Option(
+            "--localtunnel-local-host",
+            help="Optional local host for localtunnel to connect to. Avoid unless localhost cannot reach the server.",
+        ),
+    ] = None,
 ) -> None:
     """Serve the HTTP API."""
     import uvicorn
@@ -77,9 +84,9 @@ def serve(
     with start_localtunnel_if_requested(
         enabled=localtunnel,
         port=port,
-        bind_host=host,
         subdomain=localtunnel_subdomain,
         tunnel_host=localtunnel_host,
+        local_host=localtunnel_local_host,
     ):
         uvicorn.run(api, host=host, port=port)
 
@@ -90,9 +97,9 @@ def default_output_path(input_path: Path) -> Path:
 
 def build_localtunnel_command(
     port: int,
-    bind_host: str,
     subdomain: str | None = None,
     tunnel_host: str | None = None,
+    local_host: str | None = None,
 ) -> list[str]:
     executable = shutil.which("lt")
     if executable is not None:
@@ -102,27 +109,23 @@ def build_localtunnel_command(
     else:
         raise RuntimeError("Install Node.js/npm or the localtunnel CLI (`npm install -g localtunnel`) first.")
 
-    command.extend(["--port", str(port), "--local-host", localtunnel_target_host(bind_host)])
+    command.extend(["--port", str(port)])
     if subdomain:
         command.extend(["--subdomain", subdomain])
     if tunnel_host:
         command.extend(["--host", tunnel_host])
+    if local_host:
+        command.extend(["--local-host", local_host])
     return command
-
-
-def localtunnel_target_host(bind_host: str) -> str:
-    if bind_host in {"0.0.0.0", "::", ""}:
-        return "127.0.0.1"
-    return bind_host
 
 
 @contextlib.contextmanager
 def start_localtunnel_if_requested(
     enabled: bool,
     port: int,
-    bind_host: str,
     subdomain: str | None = None,
     tunnel_host: str | None = None,
+    local_host: str | None = None,
 ):
     if not enabled:
         yield
@@ -131,9 +134,9 @@ def start_localtunnel_if_requested(
     try:
         command = build_localtunnel_command(
             port=port,
-            bind_host=bind_host,
             subdomain=subdomain,
             tunnel_host=tunnel_host,
+            local_host=local_host,
         )
     except RuntimeError as exc:
         typer.secho(str(exc), fg=typer.colors.RED, err=True)

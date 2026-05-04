@@ -95,6 +95,8 @@ uv run rmbg serve --port 8000 --localtunnel --localtunnel-subdomain my-rmbg-api
 uv run rmbg serve --port 8000 --localtunnel --localtunnel-host https://localtunnel.me
 ```
 
+The CLI intentionally does not pass localtunnel's `--local-host` option by default. That option rewrites the `Host` header inside localtunnel's Node client and can corrupt binary multipart uploads from clients such as Postman. If localtunnel cannot reach your server through its default `localhost` target, prefer starting the API with `--host localhost`. Only use `--localtunnel-local-host` when you specifically need to override the tunnel client's local target.
+
 Health and model metadata:
 
 ```bash
@@ -133,7 +135,7 @@ curl -X POST \
   --output output.png
 ```
 
-If the response body is `Invalid HTTP request received.`, verify that the client is using the public `https://*.loca.lt` URL without adding a port, and that it is not configured to talk HTTPS directly to `127.0.0.1:8000`.
+If the response body is `Invalid HTTP request received.`, verify that the client is using the public `https://*.loca.lt` URL without adding a port, and that the API was not started with `--localtunnel-local-host` unless that override is required.
 
 ## Tests
 
