@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from io import BytesIO
 from typing import Annotated, Protocol
+from zipfile import ZIP_DEFLATED, ZipFile
 
-from fastapi import FastAPI, File, HTTPException, Query, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import StreamingResponse
 from PIL import Image, UnidentifiedImageError
 
@@ -82,6 +83,54 @@ def create_app(
             response_body,
             media_type="image/png",
             headers={"Content-Disposition": f'inline; filename="{filename}"'},
+        )
+
+    @app.post("/slice")
+    async def slice_image(
+        image: Annotated[UploadFile, File(description="Input image file.")],
+        grid: Annotated[int, Form(description="Grid size. 3 means a 3x3 grid.")],
+        margin: Annotated[int, Form(description="Outer margin in pixels to crop away before slicing.")] = 0,
+    ) -> StreamingResponse:
+        if grid < 1:
+            raise HTTPException(status_code=400, detail="grid must be greater than or equal to 1.")
+        if margin < 0:
+            raise HTTPException(status_code=400, detail="margin must be greater than or equal to 0.")
+
+        payload = await image.read()
+        try:
+            with Image.open(BytesIO(payload)) as input_image:
+                source = input_image.copy()
+        except UnidentifiedImageError as exc:
+            raise HTTPException(status_code=400, detail="Uploaded file is not a valid image.") from exc
+
+        width, height = source.size
+        if margin * 2 >= width or margin * 2 >= height:
+            raise HTTPException(status_code=400, detail="margin is too large for the uploaded image.")
+
+        cropped = source.crop((margin, margin, width - margin, height - margin))
+        cropped_width, cropped_height = cropped.size
+        if grid > cropped_width or grid > cropped_height:
+            raise HTTPException(status_code=400, detail="grid is too large for the cropped image.")
+
+        response_body = BytesIO()
+        with ZipFile(response_body, mode="w", compression=ZIP_DEFLATED) as archive:
+            for row in range(grid):
+                top = round(row * cropped_height / grid)
+                bottom = round((row + 1) * cropped_height / grid)
+                for column in range(grid):
+                    left = round(column * cropped_width / grid)
+                    right = round((column + 1) * cropped_width / grid)
+                    cell = cropped.crop((left, top, right, bottom))
+
+                    cell_body = BytesIO()
+                    cell.save(cell_body, format="PNG")
+                    archive.writestr(f"slice_{row + 1}_{column + 1}.png", cell_body.getvalue())
+
+        response_body.seek(0)
+        return StreamingResponse(
+            response_body,
+            media_type="application/zip",
+            headers={"Content-Disposition": 'attachment; filename="slices.zip"'},
         )
 
     return app

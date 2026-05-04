@@ -122,20 +122,18 @@ curl -X POST \
   --output mask.png
 ```
 
-### Localtunnel troubleshooting
-
-For public calls, use the `https://<subdomain>.loca.lt` URL printed by localtunnel. For local calls on the same machine, use `http://127.0.0.1:8000`. Do not call the local Uvicorn port with `https://127.0.0.1:8000`; Uvicorn is serving plain HTTP and will reject HTTPS bytes before the request reaches FastAPI.
-
-The remove-background endpoint expects multipart form data with an `image` file field:
+Slice an image into an `n x n` grid after cropping away an outer margin:
 
 ```bash
 curl -X POST \
   -F image=@input.jpg \
-  https://your-subdomain.loca.lt/v1/remove-background \
-  --output output.png
+  -F grid=3 \
+  -F margin=20 \
+  http://127.0.0.1:8000/slice \
+  --output slices.zip
 ```
 
-If the response body is `Invalid HTTP request received.`, verify that the client is using the public `https://*.loca.lt` URL without adding a port, and that the API was not started with `--localtunnel-local-host` unless that override is required.
+The zip contains PNG files named `slice_<row>_<column>.png`, using 1-based row and column numbers.
 
 ## Tests
 
