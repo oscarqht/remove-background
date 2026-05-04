@@ -76,6 +76,27 @@ uv run rmbg serve --host 127.0.0.1 --port 8000
 
 The server also accepts `--hf-token` or the `HF_TOKEN` environment variable.
 
+Expose the server through a public localtunnel HTTPS URL:
+
+```bash
+uv run rmbg serve --host 127.0.0.1 --port 8000 --localtunnel
+```
+
+The public URL is printed by localtunnel while the server is running. This requires either Node.js with `npx` available or a globally installed localtunnel CLI:
+
+```bash
+npm install -g localtunnel
+```
+
+You can request a subdomain or use another localtunnel server:
+
+```bash
+uv run rmbg serve --port 8000 --localtunnel --localtunnel-subdomain my-rmbg-api
+uv run rmbg serve --port 8000 --localtunnel --localtunnel-host https://localtunnel.me
+```
+
+The CLI intentionally does not pass localtunnel's `--local-host` option by default. That option rewrites the `Host` header inside localtunnel's Node client and can corrupt binary multipart uploads from clients such as Postman. If localtunnel cannot reach your server through its default `localhost` target, prefer starting the API with `--host localhost`. Only use `--localtunnel-local-host` when you specifically need to override the tunnel client's local target.
+
 Health and model metadata:
 
 ```bash
@@ -100,6 +121,21 @@ curl -X POST \
   'http://127.0.0.1:8000/v1/remove-background?mode=mask' \
   --output mask.png
 ```
+
+### Localtunnel troubleshooting
+
+For public calls, use the `https://<subdomain>.loca.lt` URL printed by localtunnel. For local calls on the same machine, use `http://127.0.0.1:8000`. Do not call the local Uvicorn port with `https://127.0.0.1:8000`; Uvicorn is serving plain HTTP and will reject HTTPS bytes before the request reaches FastAPI.
+
+The remove-background endpoint expects multipart form data with an `image` file field:
+
+```bash
+curl -X POST \
+  -F image=@input.jpg \
+  https://your-subdomain.loca.lt/v1/remove-background \
+  --output output.png
+```
+
+If the response body is `Invalid HTTP request received.`, verify that the client is using the public `https://*.loca.lt` URL without adding a port, and that the API was not started with `--localtunnel-local-host` unless that override is required.
 
 ## Tests
 
