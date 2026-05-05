@@ -76,26 +76,24 @@ uv run rmbg serve --host 127.0.0.1 --port 8000
 
 The server also accepts `--hf-token` or the `HF_TOKEN` environment variable.
 
-Expose the server through a public localtunnel HTTPS URL:
+Expose the server through a public NPort HTTPS URL from a separate terminal:
 
 ```bash
-uv run rmbg serve --host 127.0.0.1 --port 8000 --localtunnel
+scripts/start-nport.sh --port 8000
 ```
 
-The public URL is printed by localtunnel while the server is running. This requires either Node.js with `npx` available or a globally installed localtunnel CLI:
+The public URL is printed by NPort while the tunnel is running. NPort cleans up tunnels after 4 hours; the script restarts NPort automatically until you stop it with Ctrl+C. The script uses a globally installed `nport` CLI when available, or falls back to `npx nport`. NPort requires Node.js 20+ and npm 10+:
 
 ```bash
-npm install -g localtunnel
+node --version
+npm --version
 ```
 
-You can request a subdomain or use another localtunnel server:
+You can request a custom `nport.link` subdomain:
 
 ```bash
-uv run rmbg serve --port 8000 --localtunnel --localtunnel-subdomain my-rmbg-api
-uv run rmbg serve --port 8000 --localtunnel --localtunnel-host https://localtunnel.me
+scripts/start-nport.sh --port 8000 --subdomain my-rmbg-api
 ```
-
-The CLI intentionally does not pass localtunnel's `--local-host` option by default. That option rewrites the `Host` header inside localtunnel's Node client and can corrupt binary multipart uploads from clients such as Postman. If localtunnel cannot reach your server through its default `localhost` target, prefer starting the API with `--host localhost`. Only use `--localtunnel-local-host` when you specifically need to override the tunnel client's local target.
 
 Health and model metadata:
 
